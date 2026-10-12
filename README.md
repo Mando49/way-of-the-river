@@ -4,6 +4,8 @@ A Street Fighter-style samurai duel from the AI-animated series *The Way of the 
 
 **Play free in your browser:** https://mando49.github.io/way-of-the-river/
 
+**Watch the series on YouTube:** https://www.youtube.com/playlist?list=PLI297-0j--sE
+
 - Spar with Yuki at the mountain shrine, or duel Hayato in the Sakaki dojo
 - Block on the blade flash for a Perfect Block, flip over your opponent, throw fireballs
 - Fill your Spirit bar to summon Kanemori's Blade

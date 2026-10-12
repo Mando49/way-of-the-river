@@ -11,3 +11,11 @@ A Street Fighter-style samurai duel from the AI-animated series *The Way of the 
 Controls: phone (turn it sideways) or keyboard (arrows + J/K/L/U, M for sound).
 
 Art made with Higgsfield. Game coded with Claude.
+
+## Copyright
+
+© 2026 Mando49. All rights reserved.
+
+*The Way of the River*, its characters (Takeo, Yuki, Hayato and others), story, artwork and game code belong to the creator. You're welcome to play the game and share the link. Please don't copy, reuse or redistribute the characters, art or code without permission.
+
+Found a bug or have an idea? Open an [Issue](https://github.com/Mando49/way-of-the-river/issues).

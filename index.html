@@ -263,8 +263,14 @@ let W=0,H=0,F=1,GROUND=0;
 function mk(el,sh,poses,native){return{el,sh,poses,native,x:0,y:0,vx:0,vy:0,face:1,pose:'ready',state:'idle',t:0,dur:0,hp:100}}
 const T=mk($('takeo'),$('tSh'),TP,1), Y=mk($('yuki'),$('ySh'),YP,-1);
 function measure(){const r=stage.getBoundingClientRect(),oW=W;W=r.width;H=r.height;F=Math.min(H*.54,W*.30);GROUND=H*.055;
-  if(oW&&W){T.x*=W/oW;Y.x*=W/oW}}
+  if(oW&&W&&oW!==W){T.x*=W/oW;Y.x*=W/oW}
+  // after a rotation, keep both fighters on screen and on the ground
+  const m=F*.25;for(const c of [T,Y]){c.x=Math.max(m,Math.min(W-m,c.x||W/2));if(!(c.y>=0))c.y=0;if(c.y>H)c.y=0}
+  if(Math.abs(T.x-Y.x)<F*.2){T.x=Math.max(m,W*.35);Y.x=Math.min(W-m,W*.65)}
+  stage.querySelectorAll('.ghost,.slash').forEach(e=>e.remove())}
 addEventListener('resize',measure);
+addEventListener('orientationchange',()=>{[120,350,800].forEach(t=>setTimeout(measure,t))});
+if(window.visualViewport)visualViewport.addEventListener('resize',measure);
 const grav=()=>F*10, jumpV=()=>F*3.4;
 const grounded=c=>c.y<=0;
 function setState(c,s,dur,pose){c.state=s;c.t=0;c.dur=dur||0;if(pose)c.pose=pose}
@@ -508,7 +514,7 @@ function render(){
 
 function loop(ts){
   requestAnimationFrame(loop);let dt=Math.min(.033,((ts-(last||ts))/1000));if(slow>0){slow-=dt;dt*=.3}last=ts;now=ts;
-  if(!W)measure();
+  if(!W||Math.abs(stage.clientWidth-W)>1||Math.abs(stage.clientHeight-H)>1)measure();   // catches rotations iOS reports late
   if(mode==='fight'||mode==='ko'){
     if(freeze>0)freeze-=dt;
     else{

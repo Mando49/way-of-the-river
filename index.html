@@ -43,8 +43,7 @@ h1 small{font-size:.55em;color:var(--sakura);letter-spacing:.2em;margin-right:.6
 @keyframes flash{0%{opacity:.45}100%{opacity:0}}
 .slash{position:absolute;z-index:5;aspect-ratio:2/1;border-radius:50%;border-top:12px solid var(--steel);box-shadow:inset 0 10px 18px -6px rgba(255,255,255,.55);filter:drop-shadow(0 0 12px #fff);opacity:0;pointer-events:none}
 .slash.trail{border-top-width:6px;opacity:0;filter:drop-shadow(0 0 6px #fff) blur(.5px)}
-.fighter.ghost{z-index:2;opacity:.45;filter:blur(1.5px) brightness(1.3);transition:opacity .22s ease-out}
-.fighter.ghost.go{opacity:0}
+.ghost{position:absolute;left:0;bottom:0;z-index:2;pointer-events:none;opacity:.4}
 .slash.go{animation:slash .28s cubic-bezier(.2,.8,.3,1) forwards}
 .slash.trail.go{animation-duration:.34s}
 .slash.rev.go{animation-name:slashrev}
@@ -267,7 +266,7 @@ function measure(){const r=stage.getBoundingClientRect(),oW=W;W=r.width;H=r.heig
   // after a rotation, keep both fighters on screen and on the ground
   const m=F*.25;for(const c of [T,Y]){c.x=Math.max(m,Math.min(W-m,c.x||W/2));if(!(c.y>=0))c.y=0;if(c.y>H)c.y=0}
   if(Math.abs(T.x-Y.x)<F*.2){T.x=Math.max(m,W*.35);Y.x=Math.min(W-m,W*.65)}
-  stage.querySelectorAll('.ghost,.slash').forEach(e=>e.remove())}
+  stage.querySelectorAll('.ghost,.slash').forEach(e=>e.remove());ghosts.length=0}
 addEventListener('resize',measure);
 addEventListener('orientationchange',()=>{[120,350,800].forEach(t=>setTimeout(measure,t))});
 if(window.visualViewport)visualViewport.addEventListener('resize',measure);
@@ -474,32 +473,26 @@ function clearProjs(){projs.forEach(p=>p.el.remove());projs=[]}
 
 // ---- drawing
 const STRIKE={slash:1,attack:1};
-function ghost(c){ // fading afterimage of the pose we are leaving, so fast swings read as motion
-  if(!c.lastTf)return;const g=document.createElement('img');g.className='fighter ghost';g.src=c.el.src;g.style.width=c.el.style.width;g.style.height=c.el.style.height;
-  g.style.transform=c.lastTf;stage.appendChild(g);requestAnimationFrame(()=>g.classList.add('go'));setTimeout(()=>g.remove(),260)}
+const ghosts=[];
+function ghost(c){ // a quick see-through copy of the pose being left: opacity only (no filters, Safari-safe)
+  if(!c.lastTf)return;const g=document.createElement('img');g.className='ghost';g.src=c.el.src;g.style.width=c.el.style.width;g.style.height=c.el.style.height;
+  g.style.transform=c.lastTf;stage.appendChild(g);ghosts.push({g,t:performance.now()})}
 function draw(c,scale){
   const p=c.poses[c.pose]||c.poses.ready,flip=c.face!==c.native,ax=flip?p.w-p.ax:p.ax;
   if(c.el.dataset.p!==c.pose){
     const from=c.el.dataset.p;
-    if(STRIKE[c.pose]&&from&&!STRIKE[from]){ghost(c);c.punch=now}       // windup -> strike: smear + lunge stretch
-    else if(from&&STRIKE[from]&&c.pose!=='hit'){c.settle=now}           // strike -> recover: ease back
-    if(c.pose==='windup'&&from!=='windup')c.coil=now;                  // anticipation squash
+    if(STRIKE[c.pose]&&from&&!STRIKE[from])ghost(c);
     c.el.src=p.src;c.el.dataset.p=c.pose}
-  const bob=0,sw=p.w*scale,sh=p.h*scale;
-  // squash & stretch: coil down on windup, stretch forward on the strike, settle after
-  let sx=1,sy=1,lean=0;
-  const tp=(now-(c.punch||-1e9))/1000,tc=(now-(c.coil||-1e9))/1000,ts=(now-(c.settle||-1e9))/1000;
-  if(tp<.14){const k=1-tp/.14;sx+=.07*k;sy-=.05*k;lean=4*k}
-  else if(tc<.18&&c.pose==='windup'){const k=Math.sin(tc/.18*Math.PI);sy-=.04*k;sx+=.02*k;lean=-3*k}
-  else if(ts<.16){const k=1-ts/.16;lean=1.5*k}
+  const sw=p.w*scale,sh=p.h*scale;
   c.el.style.width=sw+'px';c.el.style.height=sh+'px';
-  c.el.style.transformOrigin=`${ax}px ${sh}px`;
-  c.el.style.transform=`translate(${c.x-ax*scale}px,${-(GROUND+c.y+bob)}px)`+(flip?' scaleX(-1)':'')+` rotate(${lean}deg) scale(${sx},${sy})`;
+  c.el.style.transform=`translate(${c.x-ax*scale}px,${-(GROUND+c.y)}px)`+(flip?' scaleX(-1)':'');
   c.lastTf=c.el.style.transform;
-  // hit glow is set every frame (not with a class) so Safari can never leave it stuck on
-  const hk=Math.max(0,1-(performance.now()-(c.hurtAt||-1e9))/160);
-  const want=hk>0?`brightness(${1+.6*hk}) sepia(${.7*hk}) saturate(${1+1.5*hk}) drop-shadow(0 8px 10px rgba(0,0,0,.5))`:'';
-  if(c.el.style.filter!==want)c.el.style.filter=want;
+  // hit: a short flicker using opacity only, checked every frame so it can never stay on
+  const hk=(performance.now()-(c.hurtAt||-1e9))<160;
+  const op=hk?((Math.floor(performance.now()/40)%2)?'.45':'1'):'1';
+  if(c.el.style.opacity!==op)c.el.style.opacity=op;
+  // fade and remove ghosts
+  const tn=performance.now();for(let i=ghosts.length-1;i>=0;i--){const q=ghosts[i],a=(tn-q.t)/220;if(a>=1){q.g.remove();ghosts.splice(i,1)}else q.g.style.opacity=(.4*(1-a)).toFixed(2)}
   const k=Math.max(.35,1-c.y/(F*1.2)),w=F*.46*k;
   c.sh.style.width=w+'px';c.sh.style.opacity=k;c.sh.style.transform=`translate(${c.x-w/2}px,${-(GROUND-6)}px)`}
 function render(){

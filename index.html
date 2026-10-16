@@ -174,7 +174,7 @@ button{font:inherit;cursor:pointer;border:0}
       <div class="moves" id="moves">
         <b>◀ ▶</b><span>Walk. Double-tap toward your opponent to flip over them. Double-tap away to hop back.</span>
         <b>▲</b><span>Jump over low cuts, or right over their head.</span>
-        <b>▲▲</b><span>Swallow Flip: tap up twice to somersault forward and cut down from above. It can't be blocked.</span>
+        <b>▲▲</b><span>Swallow Flip: tap up twice to somersault forward and cut down from above. It can't be blocked, but it needs 5 seconds to recharge.</span>
         <b>Block</b><span>Hold to block. Tap it just as their blade flashes brightest for a Perfect Block: the sword bounces off and they are wide open.</span>
         <b>Strike</b><span>Slash. Works in the air too. Hit right after a Perfect Block for big damage.</span>
         <b>Rushing River</b><span>Hold away until Takeo crouches and glows, then forward + Strike.</span>
@@ -378,7 +378,9 @@ function press(k){
       lastTap[k]=0;return}
     lastTap[k]=now}
   // double-tap up: Swallow Flip, a forward somersault that cuts down from above
+  if(k==='up'&&c.state==='jump'&&!c.flipUsed&&now-lastTap.up<320&&now<(c.flipReady||0)){lastTap.up=0;shout('Not yet','var(--mist)');return}
   if(k==='up'&&c.state==='jump'&&!c.flipUsed&&now-lastTap.up<320){
+    c.flipReady=now+5000;
     const tw=towardOf(c,Y);c.face=tw;c.flipUsed=true;lastTap.up=0;
     c.vy=jumpV()*.9;const air=1.8*c.vy/grav(),target=Y.x-tw*F*.35;c.vx=Math.max(-F*4,Math.min(F*4,(target-c.x)/air));
     setState(c,'swallow',0,'jumpup');c.didHit=false;c.spinT=0;c.spinDur=Math.max(.3,(c.vy+Math.sqrt(c.vy*c.vy+2*grav()*Math.max(0,c.y)))/grav()*.85);sfx.roar();shout('Swallow Flip','var(--steel)');return}
@@ -563,7 +565,7 @@ function start(opp){
   stage.classList.remove('walking');$('walk').className='walk';
   measure();overlay.hidden=true;
   Object.assign(T,{x:W*.28,y:0,vx:0,vy:0,face:1,hp:100});Object.assign(Y,{x:W*.72,y:0,vx:0,vy:0,face:-1,hp:100,cool:.8,want:'hold',think:0});
-  setState(T,'idle',0,'ready');setState(Y,'idle',0,'ready');setKi(0);setSp(0);endSuper();bars();charged=false;
+  T.flipReady=0;setState(T,'idle',0,'ready');setState(Y,'idle',0,'ready');setKi(0);setSp(0);endSuper();bars();charged=false;
   clearProjs();
   mode='fight';shout('Begin')}
 

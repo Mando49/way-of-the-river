@@ -157,6 +157,7 @@ button{font:inherit;cursor:pointer;border:0}
       <div class="moves" id="moves">
         <b>◀ ▶</b><span>Walk. Double-tap toward your opponent to flip over them. Double-tap away to hop back.</span>
         <b>▲</b><span>Jump over low cuts, or right over their head.</span>
+        <b>▲▲</b><span>Swallow Flip: tap up twice to somersault forward and cut down from above. It can't be blocked.</span>
         <b>Block</b><span>Hold to block. Tap it just as their blade flashes brightest for a Perfect Block: the sword bounces off and they are wide open.</span>
         <b>Strike</b><span>Slash. Works in the air too. Hit right after a Perfect Block for big damage.</span>
         <b>Rushing River</b><span>Hold away until Takeo crouches and glows, then forward + Strike.</span>
@@ -277,7 +278,7 @@ function setState(c,s,dur,pose){c.state=s;c.t=0;c.dur=dur||0;if(pose)c.pose=pose
 
 let mode='menu',now=0,last=0,freeze=0,ki=0,projs=[];
 const held={left:false,right:false,up:false,block:false};
-const lastTap={left:0,right:0};
+const lastTap={left:0,right:0,up:0};
 let backSince=0,charged=false,chargeLeftAt=0;
 
 // ---- helpers
@@ -359,7 +360,13 @@ function press(k){
       else{setState(c,'dash',.22,'walk1');c.vx=d*F*(d===tw?5.2:4.2);sfx.swish();dust(c)}
       lastTap[k]=0;return}
     lastTap[k]=now}
+  // double-tap up: Swallow Flip, a forward somersault that cuts down from above
+  if(k==='up'&&c.state==='jump'&&!c.flipUsed&&now-lastTap.up<320){
+    const tw=towardOf(c,Y);c.face=tw;c.flipUsed=true;lastTap.up=0;
+    c.vy=jumpV()*.9;const air=1.8*c.vy/grav(),target=Y.x-tw*F*.35;c.vx=Math.max(-F*4,Math.min(F*4,(target-c.x)/air));
+    setState(c,'swallow',0,'jumpup');c.didHit=false;c.spinT=0;c.spinDur=Math.max(.3,(c.vy+Math.sqrt(c.vy*c.vy+2*grav()*Math.max(0,c.y)))/grav()*.85);sfx.roar();shout('Swallow Flip','var(--steel)');return}
   if(k==='up'&&grounded(c)&&!busyT()){
+    lastTap.up=now;c.flipUsed=false;
     const d=(held.right?1:0)-(held.left?1:0);c.vy=jumpV();c.y=.01;c.vx=d*F*1.9;setState(c,'jump',0,'jumpup');c.airAtk=false;sfx.swish();dust(c)}
   if(k==='block')c.parryAt=now;
   if(k==='strike'){
@@ -395,6 +402,11 @@ function tUpdate(dt){
       if(d&&Math.floor(now/300)!==Math.floor((now-dt*1000)/300))sfx.step();break}
     case 'dash':c.vx*=Math.exp(-5*dt);c.pose='walk1';if(c.t>=c.dur){c.vx=0;c.state='idle'}break;
     case 'land':c.vx*=Math.exp(-10*dt);c.pose='crouch';if(c.t>=c.dur)c.state='idle';break;
+    case 'swallow':
+      c.spinT+=dt;
+      if(c.spinT/(c.spinDur||.5)>.6){c.pose='slash';if(!c.didHit){const dx=Math.abs(Y.x-c.x);if(dx<F*.95&&Y.state!=='hit'&&Math.abs(Y.y-c.y)<F*.9){c.didHit=true;slashFx(c,'wind',false);
+        if(Y.state==='stagger')dmgY(24,'Swallow Return','var(--steel)');else dmgY(18,'Swallow Return','var(--steel)');shake(10);petals(12)}}}
+      else c.pose='jumpup';break;
     case 'jump':
       if(c.airAtk){c.pose='slash';if(!c.didHit&&tHit('air'))c.didHit=true}else c.pose=c.vy>0?'jumpup':'jumpdown';break;
     case 'attack':
@@ -461,7 +473,7 @@ function yUpdate(dt){
 function phys(c,dt){
   if(c.y>0||c.vy>0){c.vy-=grav()*dt;c.y+=c.vy*dt;if(c.y<=0){c.y=0;c.vy=0;land(c)}}
   c.x+=c.vx*dt;const m=F*.3;if(c.x<m){c.x=m}if(c.x>W-m){c.x=W-m}}
-function land(c){dust(c);sfx.step();if(c.state==='jump'){setState(c,'land',.12,'crouch');c.face=towardOf(c,c===T?Y:T);if(c===Y)c.cool=Math.max(c.cool||0,.2)}}
+function land(c){dust(c);sfx.step();if(c.state==='swallow'){c.spinT=0;setState(c,'land',.18,'crouch');c.face=towardOf(c,Y);return}if(c.state==='jump'){setState(c,'land',.12,'crouch');c.face=towardOf(c,c===T?Y:T);if(c===Y)c.cool=Math.max(c.cool||0,.2)}}
 function pushApart(){const dx=T.x-Y.x,min=F*.42;if(Math.abs(dx)<min&&T.y<F*.4&&Y.y<F*.4){const o=(min-Math.abs(dx))/2,s=Math.sign(dx)||1;T.x+=s*o;Y.x-=s*o}}
 function projUpdate(dt){
   for(const proj of projs.slice()){
@@ -486,7 +498,8 @@ function draw(c,scale){
     c.el.src=p.src;c.el.dataset.p=c.pose}
   const sw=p.w*scale,sh=p.h*scale;
   c.el.style.width=sw+'px';c.el.style.height=sh+'px';
-  c.el.style.transform=`translate(${c.x-ax*scale}px,${-(GROUND+c.y)}px)`+(flip?' scaleX(-1)':'');
+  const spin=c.state==='swallow'?Math.min(360,c.spinT/(c.spinDur||.5)*360):0;   // one full somersault
+  c.el.style.transform=`translate(${c.x-ax*scale}px,${-(GROUND+c.y)}px)`+(flip?' scaleX(-1)':'')+(spin?` rotate(${spin.toFixed(1)}deg)`:'');
   c.lastTf=c.el.style.transform;
   // hit: a short flicker using opacity only, checked every frame so it can never stay on
   const hk=(performance.now()-(c.hurtAt||-1e9))<160;

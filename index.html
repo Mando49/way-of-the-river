@@ -31,7 +31,7 @@ h1 small{font-size:.55em;color:var(--sakura);letter-spacing:.2em;margin-right:.6
 .yt b{display:inline-block;width:0;height:0;border-left:9px solid #e5484d;border-top:6px solid transparent;border-bottom:6px solid transparent}
 .stage::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(15,13,12,.2),rgba(15,13,12,0) 40%,rgba(15,13,12,.35));pointer-events:none;z-index:1}
 .fighter{position:absolute;left:0;bottom:0;z-index:3;transform-origin:50% 50%;pointer-events:none;filter:drop-shadow(0 8px 10px rgba(0,0,0,.5));will-change:transform}
-.fighter.hurt{filter:brightness(1.9) sepia(1) hue-rotate(-30deg) saturate(4)}
+.fighter.hurt{}
 .fighter.charged{filter:drop-shadow(0 0 10px var(--steel)) drop-shadow(0 0 22px rgba(160,190,230,.8))}
 .shadow{position:absolute;bottom:0;left:0;height:12px;border-radius:50%;background:rgba(0,0,0,.5);filter:blur(4px);z-index:2;pointer-events:none}
 .glint{position:absolute;left:0;top:0;width:70px;height:70px;margin:-35px;z-index:5;opacity:0;pointer-events:none;
@@ -277,7 +277,7 @@ let backSince=0,charged=false,chargeLeftAt=0;
 // ---- helpers
 function shout(t,c){call.textContent=t;call.style.color=c||'';call.classList.remove('show');void call.offsetWidth;call.classList.add('show')}
 function doFlash(){flash.classList.remove('go');void flash.offsetWidth;flash.classList.add('go')}
-function hurtFx(c){c.el.classList.add('hurt');setTimeout(()=>c.el.classList.remove('hurt'),180)}
+function hurtFx(c){c.hurtAt=performance.now()}
 function petals(n){if(matchMedia('(prefers-reduced-motion:reduce)').matches)return;for(let i=0;i<n;i++){const p=document.createElement('div');p.className='petal';
   p.style.left=Math.random()*100+'%';p.style.setProperty('--dx',(Math.random()*160-80)+'px');p.style.setProperty('--r',(Math.random()*720)+'deg');
   p.style.animationDuration=(3+Math.random()*3)+'s';p.style.animationDelay=(Math.random()*1.5)+'s';stage.appendChild(p);setTimeout(()=>p.remove(),7000)}}
@@ -490,6 +490,10 @@ function draw(c,scale){
   c.el.style.transformOrigin=`${ax}px ${sh}px`;
   c.el.style.transform=`translate(${c.x-ax*scale}px,${-(GROUND+c.y+bob)}px)`+(flip?' scaleX(-1)':'')+` rotate(${lean}deg) scale(${sx},${sy})`;
   c.lastTf=c.el.style.transform;
+  // hit glow is set every frame (not with a class) so Safari can never leave it stuck on
+  const hk=Math.max(0,1-(performance.now()-(c.hurtAt||-1e9))/160);
+  const want=hk>0?`brightness(${1+.6*hk}) sepia(${.7*hk}) saturate(${1+1.5*hk}) drop-shadow(0 8px 10px rgba(0,0,0,.5))`:'';
+  if(c.el.style.filter!==want)c.el.style.filter=want;
   const k=Math.max(.35,1-c.y/(F*1.2)),w=F*.46*k;
   c.sh.style.width=w+'px';c.sh.style.opacity=k;c.sh.style.transform=`translate(${c.x-w/2}px,${-(GROUND-6)}px)`}
 function render(){
